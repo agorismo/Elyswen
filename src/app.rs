@@ -29,6 +29,7 @@ enum Panel {
     Closed,
     Mods,
     Stats,
+    Config,
 }
 
 pub struct App {
@@ -60,6 +61,32 @@ pub struct App {
     em: Emitter,
     rpc: Option<Rpc>,
     client: Client,
+    update: Option<(String, String)>,
+}
+
+/// Repositório do launcher no GitHub, usado para avisar sobre versões novas.
+const UPDATE_REPO: &str = "thtbee/kiln";
+
+fn check_update(client: &Client) -> Option<(String, String)> {
+    let v: serde_json::Value = client
+        .get(format!("https://api.github.com/repos/{UPDATE_REPO}/releases/latest"))
+        .send()
+        .ok()?
+        .error_for_status()
+        .ok()?
+        .json()
+        .ok()?;
+    let tag = v["tag_name"].as_str()?.to_string();
+    let url = v["html_url"].as_str()?.to_string();
+    if version_parts(&tag) > version_parts(env!("CARGO_PKG_VERSION")) {
+        Some((tag, url))
+    } else {
+        None
+    }
+}
+
+fn version_parts(s: &str) -> Vec<u64> {
+    s.trim_start_matches('v').split('.').map(|p| p.parse().unwrap_or(0)).collect()
 }
 
 pub fn http_client() -> Client {
@@ -95,6 +122,15 @@ impl App {
             });
         }
 
+        {
+            let (em, client) = (em.clone(), client.clone());
+            std::thread::spawn(move || {
+                if let Some((version, url)) = check_update(&client) {
+                    em.send(Event::UpdateAvailable { version, url });
+                }
+            });
+        }
+
         let instances = config::load_instances();
         let current = instances.first().map(|i| i.id.clone());
         let mut app = Self {
@@ -125,6 +161,7 @@ impl App {
             em,
             rpc: None,
             client,
+            update: None,
         };
         app.sync_rpc();
         app.refresh_mods();
@@ -241,6 +278,7 @@ impl App {
                     self.mod_hits = hits;
                 }
                 Event::ModsChanged => self.refresh_mods(),
+                Event::UpdateAvailable { version, url } => self.update = Some((version, url)),
                 Event::Idle => self.busy = Busy::Idle,
             }
         }
@@ -303,6 +341,7 @@ impl App {
             loader: loader.into(),
             playtime_secs: 0,
             last_played: 0,
+            ..Default::default()
         });
         if let Err(e) = config::save_instances(&self.instances) {
             self.status = format!("erro ao salvar instância: {e}");
@@ -382,8 +421,17 @@ fn play_flow(
 
     // a pasta da instância guarda saves, config e mods
     let gdir = config::instance_dir(&inst.id);
-    let prep = install::install(client, &root, entry, &inst.loader, &settings.java_path, &gdir, em)?;
+    let java = if inst.java_path.trim().is_empty() { settings.java_path.clone() } else { inst.java_path.clone() };
+    let prep = install::install(client, &root, entry, &inst.loader, &java, &gdir, em)?;
     launch::run(&root, settings, &prep, &acct, &gdir, inst, em)
+}
+
+fn preset_label(p: &str) -> &'static str {
+    match p {
+        "aikar" => "Aikar (G1)",
+        "zgc" => "ZGC",
+        _ => "nenhum",
+    }
 }
 
 fn instance_label(i: &Instance) -> String {
@@ -421,6 +469,7 @@ impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.drain();
+        let accent = Color32::from_rgb(self.settings.accent[0], self.settings.accent[1], self.settings.accent[2]);
 
         // ações pedidas pela interface; executadas depois de desenhar
         let mut play_req = false;
@@ -445,7 +494,7 @@ impl eframe::App for App {
             .show(ui, |ui| {
                 // topo: nome + conta
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("kiln").size(22.0).strong().color(ACCENT));
+                    ui.label(RichText::new("kiln").size(22.0).strong().color(accent));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.small_button("⚙").clicked() {
                             self.show_settings = !self.show_settings;
@@ -466,13 +515,27 @@ impl eframe::App for App {
                         }
                     });
                 });
+                if let Some((v, url)) = self.update.clone() {
+                    egui::Frame::new().fill(PANEL).inner_margin(10.0).show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new(format!("Nova versão {v} disponível")).color(accent));
+                            if ui.small_button("ver release").clicked() {
+                                let _ = open::that(&url);
+                            }
+                            if ui.small_button("ocultar").clicked() {
+                                self.update = None;
+                            }
+                        });
+                    });
+                    ui.add_space(8.0);
+                }
                 ui.add_space(14.0);
 
                 // código do device login
                 if let Some((code, url)) = self.code.clone() {
                     egui::Frame::new().fill(PANEL).inner_margin(14.0).show(ui, |ui| {
                         ui.label(RichText::new("Seu código de login").color(MUTED));
-                        ui.label(RichText::new(&code).size(30.0).strong().monospace().color(ACCENT));
+                        ui.label(RichText::new(&code).size(30.0).strong().monospace().color(accent));
                         ui.horizontal(|ui| {
                             if ui.button("Copiar código").clicked() {
                                 ctx.copy_text(code.clone());
@@ -563,6 +626,9 @@ impl eframe::App for App {
                         if ui.selectable_label(self.panel == Panel::Stats, "Estatísticas").clicked() {
                             self.panel = if self.panel == Panel::Stats { Panel::Closed } else { Panel::Stats };
                         }
+                        if ui.selectable_label(self.panel == Panel::Config, "Config").clicked() {
+                            self.panel = if self.panel == Panel::Config { Panel::Closed } else { Panel::Config };
+                        }
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             if ui
                                 .small_button("remover da lista")
@@ -633,6 +699,40 @@ impl eframe::App for App {
                                 }
                             }
                         }
+                        (Panel::Config, Some(_)) => {
+                            if let Some(idx) = self.current.as_ref().and_then(|id| self.instances.iter().position(|i| &i.id == id)) {
+                                let c = &mut self.instances[idx];
+                                let mut changed = false;
+                                ui.label(RichText::new("Memória (0 = usar a global)").small().color(MUTED));
+                                changed |= ui
+                                    .add(egui::Slider::new(&mut c.ram_mb, 0..=16384).step_by(512.0).suffix(" MB"))
+                                    .changed();
+                                ui.label(RichText::new("Java (vazio = automático)").small().color(MUTED));
+                                changed |= ui
+                                    .add(egui::TextEdit::singleline(&mut c.java_path).hint_text("caminho do java.exe").desired_width(f32::INFINITY))
+                                    .changed();
+                                ui.label(RichText::new("Preset de flags da JVM").small().color(MUTED));
+                                let preset_now = preset_label(&c.jvm_preset);
+                                egui::ComboBox::from_id_salt("preset").selected_text(preset_now).show_ui(ui, |ui| {
+                                    for (key, label) in [("", "nenhum"), ("aikar", "Aikar (G1, a partir de 4 GB)"), ("zgc", "ZGC (pausas curtas)")] {
+                                        if ui.selectable_value(&mut c.jvm_preset, key.to_string(), label).clicked() {
+                                            changed = true;
+                                        }
+                                    }
+                                });
+                                ui.label(RichText::new("Args extras da JVM").small().color(MUTED));
+                                changed |= ui
+                                    .add(egui::TextEdit::singleline(&mut c.jvm_args).desired_width(f32::INFINITY))
+                                    .changed();
+                                ui.label(RichText::new("Entrar em servidor ao abrir (vazio = menu)").small().color(MUTED));
+                                changed |= ui
+                                    .add(egui::TextEdit::singleline(&mut c.join_server).hint_text("ex: mc.exemplo.com:25565").desired_width(f32::INFINITY))
+                                    .changed();
+                                if changed {
+                                    let _ = config::save_instances(&self.instances);
+                                }
+                            }
+                        }
                         (Panel::Stats, Some(i)) => {
                             ui.label(format!("Tempo jogado: {}", fmt_dur(i.playtime_secs)));
                             if i.last_played > 0 {
@@ -665,14 +765,14 @@ impl eframe::App for App {
                     Busy::Working => ("PREPARANDO...", false),
                     Busy::Running => ("EM EXECUÇÃO", false),
                 };
-                let btn = egui::Button::new(RichText::new(label).size(20.0).strong().color(Color32::BLACK)).fill(ACCENT);
+                let btn = egui::Button::new(RichText::new(label).size(20.0).strong().color(Color32::BLACK)).fill(accent);
                 if ui.add_enabled(enabled, btn.min_size(egui::vec2(ui.available_width(), 54.0))).clicked() {
                     play_req = true;
                 }
 
                 ui.add_space(12.0);
                 if self.busy == Busy::Working {
-                    ui.add(egui::ProgressBar::new(self.progress).fill(ACCENT).desired_height(6.0));
+                    ui.add(egui::ProgressBar::new(self.progress).fill(accent).desired_height(6.0));
                     ui.add_space(6.0);
                 }
                 let color = if self.error { ERR } else { MUTED };
@@ -709,6 +809,9 @@ impl eframe::App for App {
                         ui.end_row();
                         ui.label("Args da JVM");
                         ui.add(egui::TextEdit::singleline(&mut self.settings.jvm_args).desired_width(260.0));
+                        ui.end_row();
+                        ui.label("Cor de destaque");
+                        ui.color_edit_button_srgb(&mut self.settings.accent);
                         ui.end_row();
                         ui.label("Discord App ID");
                         ui.add(egui::TextEdit::singleline(&mut self.settings.discord_app_id).desired_width(260.0));

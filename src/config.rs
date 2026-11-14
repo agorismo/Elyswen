@@ -33,6 +33,8 @@ pub struct Settings {
     pub snapshots: bool,
     pub old: bool,
     pub last_version: String,
+    /// Cor de destaque (RGB).
+    pub accent: [u8; 3],
 }
 
 impl Default for Settings {
@@ -47,6 +49,7 @@ impl Default for Settings {
             snapshots: false,
             old: false,
             last_version: String::new(),
+            accent: [110, 231, 143],
         }
     }
 }
@@ -84,6 +87,15 @@ pub struct Instance {
     pub loader: String,
     pub playtime_secs: u64,
     pub last_played: u64,
+    /// 0 = usa a RAM global.
+    pub ram_mb: u32,
+    /// Vazio = Java automático.
+    pub java_path: String,
+    /// "", "aikar" ou "zgc".
+    pub jvm_preset: String,
+    pub jvm_args: String,
+    /// Endereço para entrar ao abrir (vazio = menu).
+    pub join_server: String,
 }
 
 pub fn instance_dir(id: &str) -> PathBuf {
