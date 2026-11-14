@@ -176,9 +176,11 @@ pub struct OsRule {
 }
 
 #[derive(Deserialize, Clone)]
-#[allow(dead_code)]
 pub struct Library {
     pub name: String,
+    /// Repositório Maven (perfis Fabric usam isto no lugar de `downloads`).
+    #[serde(default)]
+    pub url: Option<String>,
     #[serde(default)]
     pub downloads: Option<LibDownloads>,
     #[serde(default)]
@@ -267,6 +269,63 @@ impl Library {
         let bits = if cfg!(target_pointer_width = "64") { "64" } else { "32" };
         Some(key.replace("${arch}", bits))
     }
+}
+
+/// "grupo:artefato:versão[:classificador]" -> caminho relativo no Maven.
+pub fn maven_path(name: &str) -> Option<String> {
+    let mut p = name.split(':');
+    let (g, a, v) = (p.next()?, p.next()?, p.next()?);
+    let file = match p.next() {
+        Some(c) => format!("{a}-{v}-{c}.jar"),
+        None => format!("{a}-{v}.jar"),
+    };
+    Some(format!("{}/{a}/{v}/{file}", g.replace('.', "/")))
+}
+
+impl Library {
+    /// Caminho do jar dentro de libraries/. None se a lib não tem jar para esta plataforma.
+    pub fn rel_path(&self) -> Option<String> {
+        match &self.downloads {
+            Some(d) => d.artifact.as_ref().map(|a| a.path.clone()).filter(|p| !p.is_empty()),
+            None => maven_path(&self.name),
+        }
+    }
+
+    /// Chave para não repetir a mesma biblioteca (a primeira ocorrência vence).
+    pub fn key(&self) -> String {
+        let parts: Vec<&str> = self.name.split(':').collect();
+        match parts.as_slice() {
+            [g, a, _, c, ..] => format!("{g}:{a}:{c}"),
+            [g, a, ..] => format!("{g}:{a}"),
+            _ => self.name.clone(),
+        }
+    }
+}
+
+/// Mescla um perfil filho (Fabric/Quilt) por cima do vanilla.
+pub fn merge_profile(child: VersionJson, parent: VersionJson) -> VersionJson {
+    let mut out = parent.clone();
+    out.id = child.id;
+    out.main_class = child.main_class;
+    let mut libs = child.libraries;
+    libs.extend(parent.libraries);
+    out.libraries = libs;
+    out.arguments = match (parent.arguments, child.arguments) {
+        (Some(mut p), Some(c)) => {
+            p.game.extend(c.game);
+            p.jvm.extend(c.jvm);
+            Some(p)
+        }
+        (p, c) => c.or(p),
+    };
+    if let Some(c) = child.legacy_args {
+        out.legacy_args = Some(match out.legacy_args.take() {
+            Some(p) => format!("{p} {c}"),
+            None => c,
+        });
+    }
+    out.logging = child.logging.or(parent.logging);
+    out
 }
 
 // ---------------------------------------------------------------- paths
@@ -384,7 +443,10 @@ fn run_tasks(client: &Client, tasks: &[Task], em: &Emitter, label: &str) -> Resu
 // ---------------------------------------------------------------- install
 
 pub struct Prepared {
+    /// JSON final (já mesclado com o loader, se houver).
     pub vj: VersionJson,
+    /// Versão vanilla cujo client.jar e natives são usados.
+    pub jar_id: String,
     pub java: PathBuf,
     pub assets_virtual: Option<PathBuf>,
 }
@@ -408,19 +470,37 @@ pub fn install(
     client: &Client,
     root: &Path,
     entry: &VersionEntry,
+    loader: &str,
     java_override: &str,
     game_dir: &Path,
     em: &Emitter,
 ) -> Result<Prepared> {
-    // 1) json da versão
+    // 1) json da versão vanilla
     em.status(format!("Baixando metadados de {}", entry.id));
     let json_path = version_dir(root, &entry.id).join(format!("{}.json", entry.id));
     download(
         client,
         &Task { url: entry.url.clone(), dest: json_path.clone(), sha1: entry.sha1.clone(), size: 0 },
     )?;
-    let vj: VersionJson = serde_json::from_str(&fs::read_to_string(&json_path)?)
+    let vanilla: VersionJson = serde_json::from_str(&fs::read_to_string(&json_path)?)
         .with_context(|| format!("json da versão {} inválido", entry.id))?;
+
+    // 1b) mod loader: baixa o perfil e mescla por cima do vanilla
+    let vj = match loader {
+        "fabric" => {
+            em.status("Baixando perfil do Fabric");
+            let (child_id, child_text) = crate::loader::fabric_profile(client, &entry.id)?;
+            let child_path = version_dir(root, &child_id).join(format!("{child_id}.json"));
+            if let Some(p) = child_path.parent() {
+                fs::create_dir_all(p)?;
+            }
+            fs::write(&child_path, &child_text)?;
+            let child: VersionJson =
+                serde_json::from_str(&child_text).context("perfil do Fabric inválido")?;
+            merge_profile(child, vanilla.clone())
+        }
+        _ => vanilla,
+    };
 
     let mut tasks: Vec<Task> = Vec::new();
 
@@ -439,7 +519,20 @@ pub fn install(
     let libs = libraries_dir(root);
     let mut native_jars: Vec<(PathBuf, Vec<String>)> = Vec::new();
     for lib in vj.libraries.iter().filter(|l| l.allowed()) {
-        let Some(d) = &lib.downloads else { continue };
+        let Some(d) = &lib.downloads else {
+            // perfil Fabric: a lib só tem nome Maven e a URL do repositório
+            if let Some(rel) = lib.rel_path() {
+                let base = lib.url.clone().unwrap_or_else(|| "https://libraries.minecraft.net/".into());
+                let base = base.trim_end_matches('/');
+                tasks.push(Task {
+                    url: format!("{base}/{rel}"),
+                    dest: libs.join(&rel),
+                    sha1: String::new(),
+                    size: 0,
+                });
+            }
+            continue;
+        };
         if let Some(a) = &d.artifact {
             if !a.url.is_empty() {
                 tasks.push(Task {
@@ -492,6 +585,10 @@ pub fn install(
         index = Some((idx, ai.id.clone()));
     }
 
+    // vanilla e perfil podem pedir o mesmo arquivo: baixa uma vez só
+    let mut seen_dest = std::collections::HashSet::new();
+    tasks.retain(|t| seen_dest.insert(t.dest.clone()));
+
     run_tasks(client, &tasks, em, "Baixando arquivos")?;
 
     // 6) extrai natives (versões antigas, LWJGL 2 / 3.x < 3.3)
@@ -533,7 +630,7 @@ pub fn install(
     let java = resolve_java(client, root, &vj, java_override, em)?;
 
     em.progress(1.0);
-    Ok(Prepared { vj, java, assets_virtual })
+    Ok(Prepared { vj, jar_id: entry.id.clone(), java, assets_virtual })
 }
 
 fn extract_natives(jar: &Path, dest: &Path, exclude: &[String]) -> Result<()> {

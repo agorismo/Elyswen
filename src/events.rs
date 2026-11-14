@@ -1,18 +1,23 @@
 use crate::config::Account;
 use crate::install::Manifest;
+use crate::modrinth::Hit;
 use std::sync::mpsc::Sender;
 
 /// Mensagens enviadas pelas threads de trabalho para a interface.
 pub enum Event {
     Status(String),
+    /// Erro de uma ação que não derruba o jogo (ex.: mod não instalado).
+    Warn(String),
     Progress(f32),
     DeviceCode { code: String, url: String },
     Account(Account),
     Manifest(Manifest),
     Started(String),
     Exited(Option<i32>),
-    CrashLog(Vec<String>),
+    CrashLog { lines: Vec<String>, hint: Option<String> },
     Error(String),
+    ModResults(Vec<Hit>),
+    ModsChanged,
     Idle,
 }
 

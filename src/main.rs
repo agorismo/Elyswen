@@ -4,6 +4,8 @@ mod config;
 mod events;
 mod install;
 mod launch;
+mod loader;
+mod modrinth;
 mod rpc;
 
 use events::{Emitter, Event};
@@ -23,16 +25,12 @@ fn main() -> eframe::Result {
         _ => {
             let options = eframe::NativeOptions {
                 viewport: eframe::egui::ViewportBuilder::default()
-                    .with_inner_size([440.0, 460.0])
+                    .with_inner_size([440.0, 520.0])
                     .with_min_inner_size([440.0, 380.0])
                     .with_title("kiln"),
                 ..Default::default()
             };
-            eframe::run_native(
-                "kiln",
-                options,
-                Box::new(|cc| Ok(Box::new(app::App::new(cc)))),
-            )
+            eframe::run_native("kiln", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
         }
     }
 }
@@ -68,11 +66,11 @@ fn cli_install(id: Option<String>) {
         return eprintln!("versão '{id}' não existe (use `kiln list`)");
     };
     let settings = config::Settings::load();
-    let gdir = launch::game_dir(&root, &settings, &id);
+    let gdir = root.join("game").join(&id);
     let (tx, rx) = channel();
     let em = Emitter::new(tx, None);
     let worker = std::thread::spawn(move || {
-        let r = install::install(&client, &root, &entry, &settings.java_path, &gdir, &em);
+        let r = install::install(&client, &root, &entry, "vanilla", &settings.java_path, &gdir, &em);
         match &r {
             Ok(p) => em.status(format!("OK — java: {}", p.java.display())),
             Err(e) => em.send(Event::Error(format!("{e:#}"))),
