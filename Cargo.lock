@@ -1164,6 +1164,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
 
 [[package]]
+name = "elyswen"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "directories",
+ "discord-rich-presence",
+ "eframe",
+ "hex",
+ "keyring",
+ "open",
+ "rayon",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha1",
+ "zip",
+]
+
+[[package]]
 name = "emath"
 version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2135,25 +2154,6 @@ name = "khronos_api"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
-
-[[package]]
-name = "kiln"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "directories",
- "discord-rich-presence",
- "eframe",
- "hex",
- "keyring",
- "open",
- "rayon",
- "reqwest",
- "serde",
- "serde_json",
- "sha1",
- "zip",
-]
 
 [[package]]
 name = "kurbo"

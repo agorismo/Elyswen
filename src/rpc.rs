@@ -51,13 +51,13 @@ impl Rpc {
                 }
                 if let Some(c) = client.as_mut() {
                     let (details, st, ts) = match &state {
-                        Msg::Playing(v) => (format!("Jogando Minecraft {v}"), "via kiln".to_string(), Some(since)),
-                        _ => ("No launcher".to_string(), "kiln".to_string(), None),
+                        Msg::Playing(v) => (format!("Jogando Minecraft {v}"), "via elyswen".to_string(), Some(since)),
+                        _ => ("No launcher".to_string(), "elyswen".to_string(), None),
                     };
                     let mut act = activity::Activity::new().details(&details).state(&st).assets(
                         activity::Assets::new()
                             .large_image("minecraft")
-                            .large_text("kiln — launcher minimalista"),
+                            .large_text("elyswen — launcher minimalista"),
                     );
                     if let Some(t) = ts {
                         act = act.timestamps(activity::Timestamps::new().start(t));

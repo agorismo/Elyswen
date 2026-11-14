@@ -9,7 +9,7 @@ use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-pub const LAUNCHER_NAME: &str = "kiln";
+pub const LAUNCHER_NAME: &str = "elyswen";
 pub const LAUNCHER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn subst(s: &str, vars: &HashMap<&str, String>) -> String {

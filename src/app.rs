@@ -65,7 +65,7 @@ pub struct App {
 }
 
 /// Repositório do launcher no GitHub, usado para avisar sobre versões novas.
-const UPDATE_REPO: &str = "thtbee/kiln";
+const UPDATE_REPO: &str = "agorismo/Elyswen";
 
 fn check_update(client: &Client) -> Option<(String, String)> {
     let v: serde_json::Value = client
@@ -91,7 +91,7 @@ fn version_parts(s: &str) -> Vec<u64> {
 
 pub fn http_client() -> Client {
     Client::builder()
-        .user_agent(format!("kiln/{}", env!("CARGO_PKG_VERSION")))
+        .user_agent(format!("elyswen/{}", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(120))
         .connect_timeout(Duration::from_secs(15))
         .build()
@@ -494,7 +494,7 @@ impl eframe::App for App {
             .show(ui, |ui| {
                 // topo: nome + conta
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("kiln").size(22.0).strong().color(accent));
+                    ui.label(RichText::new("Elyswen").size(22.0).strong().color(accent));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.small_button("⚙").clicked() {
                             self.show_settings = !self.show_settings;

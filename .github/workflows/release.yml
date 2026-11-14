@@ -17,8 +17,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --release
       - run: cargo build --release
-      - run: Copy-Item target/release/kiln.exe kiln-windows-x64.exe
+      - run: Copy-Item target/release/elyswen.exe elyswen-windows-x64.exe
       - uses: softprops/action-gh-release@v2
         with:
-          files: kiln-windows-x64.exe
+          files: elyswen-windows-x64.exe
           generate_release_notes: true

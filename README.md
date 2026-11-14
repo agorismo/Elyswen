@@ -1,4 +1,4 @@
-# kiln
+# Elyswen
 
 Launcher de Minecraft: Java Edition minimalista, em Rust.
 
@@ -21,10 +21,10 @@ rustup default stable
 cargo run --release
 ```
 
-O executável fica em `target/release/kiln.exe`. Para publicar uma versão no GitHub: `git tag v0.2.0 && git push origin v0.2.0` (o workflow `release.yml` cria a release com o `.exe`). Também tem um workflow em
+O executável fica em `target/release/elyswen.exe`. Para publicar uma versão no GitHub: `git tag v0.2.0 && git push origin v0.2.0` (o workflow `release.yml` cria a release com o `.exe`). Também tem um workflow em
 `.github/workflows/build.yml` que gera os binários de Windows/Linux/macOS no GitHub Actions.
 
-CLI útil para testar: `kiln list` (lista versões) e `kiln install 1.21.4` (baixa tudo sem abrir o jogo).
+CLI útil para testar: `elyswen list` (lista versões) e `elyswen install 1.21.4` (baixa tudo sem abrir o jogo).
 
 ## Configuração (uma vez)
 
@@ -45,11 +45,11 @@ CLI útil para testar: `kiln list` (lista versões) e `kiln install 1.21.4` (bai
 2. Copie o **Application ID** e cole em ⚙ → *Discord App ID*
 3. Em **Rich Presence → Art Assets**, envie uma imagem com a chave `minecraft`
 
-Também dá para usar as variáveis `KILN_CLIENT_ID` e `KILN_DISCORD_APP_ID`.
+Também dá para usar as variáveis `ELYSWEN_CLIENT_ID` e `ELYSWEN_DISCORD_APP_ID`.
 
 ## Onde ficam os arquivos
 
-Tudo em `%APPDATA%\kiln\data` (Windows) / `~/.local/share/kiln` (Linux): `versions`, `libraries`,
+Tudo em `%APPDATA%\elyswen\data` (Windows) / `~/.local/share/elyswen` (Linux): `versions`, `libraries`,
 `assets`, `runtime` (Java), `instances/<id>` (saves, config e mods de cada instância), `logs/latest-launch.log`.
 O login fica em `account.json`; o refresh token fica no cofre do sistema quando ele funciona.
 

@@ -741,7 +741,7 @@ fn ensure_runtime(client: &Client, root: &Path, component: &str, em: &Emitter) -
     let m_url = m["url"].as_str().ok_or_else(|| anyhow!("manifesto de Java inválido"))?;
     let m_sha = m["sha1"].as_str().unwrap_or_default().to_string();
 
-    let marker = dir.join(".kiln-ok");
+    let marker = dir.join(".elyswen-ok");
     if java.exists() && fs::read_to_string(&marker).map(|s| s.trim() == m_sha).unwrap_or(false) {
         return Ok(Some(java));
     }

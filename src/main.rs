@@ -27,15 +27,15 @@ fn main() -> eframe::Result {
                 viewport: eframe::egui::ViewportBuilder::default()
                     .with_inner_size([440.0, 520.0])
                     .with_min_inner_size([440.0, 380.0])
-                    .with_title("kiln"),
+                    .with_title("Elyswen"),
                 ..Default::default()
             };
-            eframe::run_native("kiln", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
+            eframe::run_native("Elyswen", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
         }
     }
 }
 
-/// `kiln list` — imprime todas as versões disponíveis.
+/// `elyswen list` — imprime todas as versões disponíveis.
 fn cli_list() {
     let client = app::http_client();
     match install::fetch_manifest(&client, &config::data_dir()) {
@@ -50,10 +50,10 @@ fn cli_list() {
     }
 }
 
-/// `kiln install <versão>` — baixa tudo (jar, libs, assets, natives, Java) sem abrir o jogo.
+/// `elyswen install <versão>` — baixa tudo (jar, libs, assets, natives, Java) sem abrir o jogo.
 fn cli_install(id: Option<String>) {
     let Some(id) = id else {
-        eprintln!("uso: kiln install <versão>");
+        eprintln!("uso: elyswen install <versão>");
         return;
     };
     let client = app::http_client();
@@ -63,7 +63,7 @@ fn cli_install(id: Option<String>) {
         Err(e) => return eprintln!("erro: {e:#}"),
     };
     let Some(entry) = manifest.versions.iter().find(|v| v.id == id).cloned() else {
-        return eprintln!("versão '{id}' não existe (use `kiln list`)");
+        return eprintln!("versão '{id}' não existe (use `elyswen list`)");
     };
     let settings = config::Settings::load();
     let gdir = root.join("game").join(&id);

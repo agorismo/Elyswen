@@ -4,9 +4,9 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn data_dir() -> PathBuf {
-    directories::ProjectDirs::from("", "", "kiln")
+    directories::ProjectDirs::from("", "", "elyswen")
         .map(|d| d.data_dir().to_path_buf())
-        .unwrap_or_else(|| PathBuf::from(".kiln"))
+        .unwrap_or_else(|| PathBuf::from(".elyswen"))
 }
 
 pub fn now() -> u64 {
@@ -40,8 +40,8 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            client_id: std::env::var("KILN_CLIENT_ID").unwrap_or_default(),
-            discord_app_id: std::env::var("KILN_DISCORD_APP_ID").unwrap_or_default(),
+            client_id: std::env::var("ELYSWEN_CLIENT_ID").unwrap_or_default(),
+            discord_app_id: std::env::var("ELYSWEN_DISCORD_APP_ID").unwrap_or_default(),
             rpc: true,
             ram_mb: 4096,
             java_path: String::new(),
@@ -227,7 +227,7 @@ fn keyring_entry(uuid: &str) -> Option<keyring::Entry> {
     if uuid.is_empty() {
         return None;
     }
-    keyring::Entry::new("kiln", &format!("ms-refresh-{uuid}")).ok()
+    keyring::Entry::new("elyswen", &format!("ms-refresh-{uuid}")).ok()
 }
 
 fn keyring_store(uuid: &str, token: &str) -> bool {

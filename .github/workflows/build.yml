@@ -17,8 +17,8 @@ jobs:
       - run: cargo build --release
       - uses: actions/upload-artifact@v4
         with:
-          name: kiln-${{ matrix.os }}
+          name: elyswen-${{ matrix.os }}
           path: |
-            target/release/kiln
-            target/release/kiln.exe
+            target/release/elyswen
+            target/release/elyswen.exe
           if-no-files-found: ignore
