@@ -57,6 +57,6 @@ O login fica em `account.json`; o refresh token fica no cofre do sistema quando 
 
 - Loaders: vanilla e Fabric. Quilt, NeoForge e Forge ainda não
 - Mods só pelo Modrinth (sem CurseForge nem modpacks `.mrpack` ainda)
-- Sem skins, servidores, temas, bandeja ou atualização automática do launcher ainda
+- Sem skins, bandeja, tradução e troca automática do launcher (só avisa que há versão nova)
 - Versões muito antigas (LWJGL 2) não têm natives para Mac ARM / Linux ARM
 - Uma conta por vez

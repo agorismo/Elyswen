@@ -18,6 +18,7 @@ pub enum Event {
     Error(String),
     ModResults(Vec<Hit>),
     ModsChanged,
+    UpdateAvailable { version: String, url: String },
     Idle,
 }
 
